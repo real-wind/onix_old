@@ -16,8 +16,9 @@ void kernel_init()
 {
     console_init();       // 初始化控制台
 
-    // gdt_init();
-    task_init();
+    gdt_init();
+    interrupt_init();
+    // task_init();
 
     return;
 }
