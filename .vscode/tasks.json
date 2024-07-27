@@ -1,0 +1,64 @@
+// tasks.json 配置运行任务
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "C/C++: gcc build active file",
+            "command": "/usr/bin/gcc",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-m32",  // 32位编译选项
+                "-g",    // 启用调试信息
+                "-I${workspaceFolder}/src/include", // 包含目录
+                "${file}", // 当前文件
+                "-o", // 输出选项
+                "${fileDirname}/${fileBasenameNoExtension}.out" // 输出文件名
+            ],
+            "options": {
+                "cwd": "${fileDirname}" // 当前工作目录
+            },
+            "problemMatcher": [
+                "$gcc" // 使用gcc问题匹配器
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true // 设置为默认构建任务
+            }
+        },
+        {
+            "type": "shell",
+            "label": "nasm: gcc build active file",
+            "command": "",
+            "args": [
+                "/usr/bin/nasm",
+                "-f",
+                "elf32",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}.o",
+                ";",
+                "/usr/bin/gcc",
+                "-fdiagnostics-color=always",
+                "-m32",  // 32位编译选项
+                "-g",    // 启用调试信息
+                "-static",
+                "-I${workspaceFolder}/src/include", // 包含目录
+                "${fileDirname}/${fileBasenameNoExtension}.o", // 当前文件
+                "-o", // 输出选项
+                "${fileDirname}/${fileBasenameNoExtension}.out" // 输出文件名
+            ],
+            "options": {
+                "cwd": "${fileDirname}" // 当前工作目录
+            },
+            "problemMatcher": [
+                "$gcc" // 使用gcc问题匹配器
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true // 设置为默认构建任务
+            }
+        }
+    ],
+    "version": "2.0.0"
+}
