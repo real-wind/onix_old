@@ -28,21 +28,23 @@ void schedule()
     task_switch(next);  // 调用任务切换函数
 }
 
-u32 thread_a()
+u32 _ofp thread_a()
 {
+    asm volatile("sti\n");
+
     while (true)      // 无限循环
     {
         printk("A");  // 打印字符 "A" 到控制台
-        schedule();   // 调用调度函数，允许切换到其他线程
     }
 }
 
-u32 thread_b()
+u32 _ofp thread_b()
 {
+    asm volatile("sti\n");
+
     while (true)      // 无限循环
     {
         printk("B");  // 打印字符 "B" 到控制台
-        schedule();   // 调用调度函数，允许切换到其他线程
     }
 }
 
