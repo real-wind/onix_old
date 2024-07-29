@@ -35,7 +35,7 @@ void cmos_write(u8 addr, u8 value)
     outb(CMOS_DATA, value);
 }
 
-static u32 volatile counter = 0;
+extern void start_beep();
 
 // 实时时钟中断处理函数
 void rtc_handler(int vector)
@@ -47,16 +47,16 @@ void rtc_handler(int vector)
     send_eoi(vector);
 
     // 读 CMOS 寄存器 C，允许 CMOS 继续产生中断
-    cmos_read(CMOS_C);
+    // cmos_read(CMOS_C);
 
-    set_alarm(1);
+    start_beep();
 
-    LOGK("rtc handler %d...\n", counter++);
 }
 
 // 设置 secs 秒后发生实时时钟中断
 void set_alarm(u32 secs)
 {
+    LOGK("beeping after %d seconds\n", secs);
     tm time;
     time_read(&time);
 
@@ -89,6 +89,9 @@ void set_alarm(u32 secs)
     cmos_write(CMOS_HOUR, bin_to_bcd(time.tm_hour));
     cmos_write(CMOS_MINUTE, bin_to_bcd(time.tm_min));
     cmos_write(CMOS_SECOND, bin_to_bcd(time.tm_sec));
+
+    cmos_write(CMOS_B, 0b00100010); // 打开闹钟中断
+    cmos_read(CMOS_C);              // 读 C 寄存器，以允许 CMOS 中断
 }
 
 void rtc_init()
@@ -102,7 +105,7 @@ void rtc_init()
     set_alarm(2);   // 2 秒
 
     // 设置中断频率
-    outb(CMOS_A, (inb(CMOS_A) & 0xf) | 0b1110);
+    // outb(CMOS_A, (inb(CMOS_A) & 0xf) | 0b1110);
 
     set_interrupt_handler(IRQ_RTC, rtc_handler);
     set_interrupt_mask(IRQ_RTC, true);
