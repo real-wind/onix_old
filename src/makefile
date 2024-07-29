@@ -43,6 +43,7 @@ $(BUILD)/kernel.bin: \
 	$(BUILD)/kernel/handler.o \
 	$(BUILD)/kernel/clock.o \
 	$(BUILD)/kernel/time.o \
+	$(BUILD)/kernel/rtc.o \
 	$(BUILD)/lib/string.o \
 	$(BUILD)/lib/vsprintf.o \
 	$(BUILD)/lib/stdlib.o \
@@ -77,24 +78,25 @@ bochsg: $(BUILD)/master.img
 	rm -f $(BUILD)/master.img.lock
 	bochs-gdb -q -f ../bochs/bochsrc.gdb
 
-.PHONY: qemu	# QEMU 可以以允许 GDB 连接的模式启动，通常是通过 -s -S 参数来实现。这些参数让 QEMU 在启动时监听一个端口（默认为 localhost:1234），并在启动后暂停执行，等待 GDB 的连接
-qemu: $(BUILD)/master.img
-	qemu-system-i386 \
+QEMU:= qemu-system-i386 \
 	-m 32M \
 	-boot c \
-	-drive file=$<,if=ide,index=0,media=disk,format=raw \
+	-drive file=$(BUILD)/master.img,if=ide,index=0,media=disk,format=raw \
 	-audiodev pa,id=hda \
 	-machine pcspk-audiodev=hda \
+	-rtc base=localtime \
+
+.PHONY: qemu
+qemu: $(BUILD)/master.img
+	$(QEMU)
 
 .PHONY: qemug
 qemug: $(BUILD)/master.img
-	qemu-system-i386 \
-	-s -S \
-	-m 32M \
-	-boot c \
-	-drive file=$<,if=ide,index=0,media=disk,format=raw \
-	-audiodev pa,id=hda \
-	-machine pcspk-audiodev=hda \
+	$(QEMU) -s -S
 
 
-
+$(BUILD)/master.vmdk: $(BUILD)/master.img
+	qemu-img convert -O vmdk $< $@
+ 
+.PHONY:vmdk
+vmdk: $(BUILD)/master.vmdk
