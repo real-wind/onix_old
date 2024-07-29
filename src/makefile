@@ -78,11 +78,22 @@ bochsg: $(BUILD)/master.img
 
 .PHONY: qemu	# QEMU 可以以允许 GDB 连接的模式启动，通常是通过 -s -S 参数来实现。这些参数让 QEMU 在启动时监听一个端口（默认为 localhost:1234），并在启动后暂停执行，等待 GDB 的连接
 qemu: $(BUILD)/master.img
-	qemu-system-i386 -m 32M -boot c -hda $<
+	qemu-system-i386 \
+	-m 32M \
+	-boot c \
+	-drive file=$<,if=ide,index=0,media=disk,format=raw \
+	-audiodev pa,id=hda \
+	-machine pcspk-audiodev=hda \
 
 .PHONY: qemug
 qemug: $(BUILD)/master.img
-	qemu-system-i386 -s -S -m 32M -boot c -hda $<
+	qemu-system-i386 \
+	-s -S \
+	-m 32M \
+	-boot c \
+	-drive file=$<,if=ide,index=0,media=disk,format=raw \
+	-audiodev pa,id=hda \
+	-machine pcspk-audiodev=hda \
 
 
 
