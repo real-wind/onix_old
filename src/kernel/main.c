@@ -20,9 +20,7 @@ void kernel_init()
     interrupt_init();
     // task_init();
 
-    asm volatile(  // asm 关键字是用来标示内联汇编语句开始 volatile 用于指示编译器不要优化这段汇编代码，确保每次程序执行到这里时都会实际执行这些汇编指令
-        "sti\n"  // set interrupt flag"，用于启用中断
-        "movl %eax, %eax\n");  // 为了演示\n
+    asm volatile("sti\n");  
 
     u32 counter = 0;
     while (true)
