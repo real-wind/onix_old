@@ -79,12 +79,12 @@ clean:
 .PHONY: bochs
 bochs: $(BUILD)/master.img
 	rm -f $(BUILD)/master.img.lock
-	bochs -q -f ../bochs/bochsrc
+	bochs -q -f ../bochs/bochsrc -unlock
 
 .PHONY: bochsg
 bochsg: $(BUILD)/master.img
 	rm -f $(BUILD)/master.img.lock
-	bochs-gdb -q -f ../bochs/bochsrc.gdb
+	bochs-gdb -q -f ../bochs/bochsrc.gdb -unlock
 
 QEMU:= qemu-system-i386 \
 	-m 32M \
