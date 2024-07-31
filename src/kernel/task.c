@@ -1,15 +1,55 @@
 #include <onix/task.h>
 #include <onix/printk.h>
 #include <onix/debug.h>
+#include <onix/memory.h>
+#include <onix/assert.h>
+#include <onix/interrupt.h>
+#include <onix/string.h>
+#include <onix/bitmap.h>
 
-#define PAGE_SIZE 0x1000  // 定义页面大小为 4096 字节
+extern bitmap_t kernel_map;
+extern void task_switch(task_t *next);
 
-// 静态定义两个任务的起始地址
-task_t *a = (task_t *)0x1000; // 和task_t *a = 0x1000;效果一样   将内存地址 0x1000 转换为 task_t 类型指针，并赋值给 a
-task_t *b = (task_t *)0x2000;
+#define NR_TASKS 64
+static task_t *task_table[NR_TASKS];
 
-// 声明外部的任务切换函数
-extern void task_switch(task_t *next); // 汇编实现 schedual.asm
+// 从 task_table 里获得一个空闲的任务
+static task_t *get_free_task()
+{
+    for (size_t i = 0; i < NR_TASKS; i++)
+    {
+        if (task_table[i] == NULL)
+        {
+            task_table[i] = (task_t *)alloc_kpage(1); // todo free_kpage
+            return task_table[i];
+        }
+    }
+    panic("No more tasks");
+}
+
+// 从任务数组中查找某种状态的任务，自己除外
+static task_t *task_search(task_state_t state)
+{
+    assert(!get_interrupt_state());
+    task_t *task = NULL;
+    task_t *current = running_task();
+
+    for (size_t i = 0; i < NR_TASKS; i++)
+    {
+        task_t *ptr = task_table[i];
+        if (ptr == NULL)
+            continue;
+
+        if (ptr->state != state)
+            continue;
+        if (current == ptr)
+            continue;
+        if (task == NULL || task->ticks < ptr->ticks || ptr->jiffies < task->jiffies)
+            task = ptr;
+    }
+
+    return task;
+}
 
 // 获取当前运行的任务
 task_t *running_task()
@@ -23,62 +63,98 @@ task_t *running_task()
 // 调度函数
 void schedule()
 {
-    task_t *current = running_task();  // 获取当前正在运行的任务
-    task_t *next = current == a ? b : a;  // 决定下一个要运行的任务，如果当前是a则切换到b，反之亦然
-    task_switch(next);  // 调用任务切换函数
-}
+    task_t *current = running_task();
+    task_t *next = task_search(TASK_READY);
 
-u32 _ofp thread_a()
-{
-    asm volatile("sti\n");
+    assert(next != NULL);
+    assert(next->magic == ONIX_MAGIC);
 
-    while (true)      // 无限循环
+    if (current->state == TASK_RUNNING)
     {
-        printk("A");  // 打印字符 "A" 到控制台
+        current->state = TASK_READY;
     }
+
+    next->state = TASK_RUNNING;
+    if (next == current)
+        return;
+
+    task_switch(next);
 }
 
-u32 _ofp thread_b()
+static task_t *task_create(target_t target, const char *name, u32 priority, u32 uid)
 {
-    asm volatile("sti\n");
+    task_t *task = get_free_task();
+    memset(task, 0, PAGE_SIZE);
 
-    while (true)      // 无限循环
-    {
-        printk("B");  // 打印字符 "B" 到控制台
-    }
-}
-
-
-// 创建一个新任务，设置其堆栈和初始寄存器状态
-static void task_create(task_t *task, target_t target)
-{
-    // 计算新任务的堆栈顶部位置
-    // u32 *stack = (u32 *)task + PAGE_SIZE;
     u32 stack = (u32)task + PAGE_SIZE;
 
-    // 为任务帧留出空间，并调整堆栈指针
     stack -= sizeof(task_frame_t);
     task_frame_t *frame = (task_frame_t *)stack;
-
-    // 初始化任务帧的寄存器值
     frame->ebx = 0x11111111;
     frame->esi = 0x22222222;
     frame->edi = 0x33333333;
     frame->ebp = 0x44444444;
-    frame->eip = (void *)target;  // 设置任务的入口点
+    frame->eip = (void *)target;
 
-    // 将堆栈指针更新到任务结构体
+    strcpy((char *)task->name, name);
+
     task->stack = (u32 *)stack;
+    task->priority = priority;
+    task->ticks = task->priority;
+    task->jiffies = 0;
+    task->state = TASK_READY;
+    task->uid = uid;
+    task->vmap = &kernel_map;
+    task->pde = KERNEL_PAGE_DIR;
+    task->magic = ONIX_MAGIC;
+
+    return task;
 }
 
+static void task_setup()
+{
+    task_t *task = running_task();
+    task->magic = ONIX_MAGIC;
+    task->ticks = 1;
 
-// 初始化系统任务
+    memset(task_table, 0, sizeof(task_table));
+}
+
+u32 thread_a()
+{
+    set_interrupt_state(true);
+
+    while (true)
+    {
+        printk("A");
+    }
+}
+
+u32 thread_b()
+{
+    set_interrupt_state(true);
+
+    while (true)
+    {
+        printk("B");
+    } 
+}
+
+u32 thread_c()
+{
+    set_interrupt_state(true);
+
+    while (true)
+    {
+        printk("C");
+    }
+}
+
 void task_init()
 {
-    // 创建两个任务
-    task_create(a, thread_a);
-    task_create(b, thread_b);
+     task_setup();
 
-    // 调用调度器启动任务调度
-    schedule();
+    task_create(thread_a, "a", 5, KERNEL_USER);
+    task_create(thread_b, "b", 5, KERNEL_USER);
+    task_create(thread_c, "c", 5, KERNEL_USER);
 }
