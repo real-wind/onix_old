@@ -74,6 +74,11 @@ void schedule()
         current->state = TASK_READY;
     }
 
+    if (!current->ticks)
+    {
+        current->ticks = current->priority;
+    }
+
     next->state = TASK_RUNNING;
     if (next == current)
         return;
@@ -105,7 +110,7 @@ static task_t *task_create(target_t target, const char *name, u32 priority, u32 
     task->state = TASK_READY;
     task->uid = uid;
     task->vmap = &kernel_map;
-    task->pde = KERNEL_PAGE_DIR;
+    task->pde = KERNEL_PAGE_DIR; // page directory entry
     task->magic = ONIX_MAGIC;
 
     return task;
@@ -120,7 +125,7 @@ static void task_setup()
     memset(task_table, 0, sizeof(task_table));
 }
 
-u32 thread_a()
+u32 thread_a()  // 中断门里调用，会自动关中断
 {
     set_interrupt_state(true);
 
