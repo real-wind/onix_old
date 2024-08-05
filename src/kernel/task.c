@@ -6,6 +6,7 @@
 #include <onix/interrupt.h>
 #include <onix/string.h>
 #include <onix/bitmap.h>
+#include <onix/syscall.h>
 
 extern bitmap_t kernel_map;
 extern void task_switch(task_t *next);
@@ -51,6 +52,11 @@ static task_t *task_search(task_state_t state)
     return task;
 }
 
+void task_yield()
+{
+    schedule();
+}
+
 // 获取当前运行的任务
 task_t *running_task()
 {
@@ -63,6 +69,8 @@ task_t *running_task()
 // 调度函数
 void schedule()
 {
+    assert(!get_interrupt_state()); // 不可中断
+
     task_t *current = running_task();
     task_t *next = task_search(TASK_READY);
 
@@ -118,6 +126,7 @@ static task_t *task_create(target_t target, const char *name, u32 priority, u32 
 
 static void task_setup()
 {
+    // BMB;
     task_t *task = running_task();
     task->magic = ONIX_MAGIC;
     task->ticks = 1;
@@ -132,6 +141,7 @@ u32 thread_a()  // 中断门里调用，会自动关中断
     while (true)
     {
         printk("A");
+        yield();
     }
 }
 
@@ -142,6 +152,7 @@ u32 thread_b()
     while (true)
     {
         printk("B");
+        yield();
     } 
 }
 
@@ -152,12 +163,13 @@ u32 thread_c()
     while (true)
     {
         printk("C");
+        yield();
     }
 }
 
 void task_init()
 {
-     task_setup();
+    task_setup();
 
     task_create(thread_a, "a", 5, KERNEL_USER);
     task_create(thread_b, "b", 5, KERNEL_USER);
